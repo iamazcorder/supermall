@@ -19,7 +19,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .nav-bar {
     display: flex;
     /* position: fixed;

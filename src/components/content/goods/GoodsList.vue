@@ -18,6 +18,11 @@ export default {
     },
     components: {
         GoodsListItem
+    },
+    methods: {
+        imgLoad() {
+            this.$emit('imgLoad')
+        }
     }
 }
 </script>

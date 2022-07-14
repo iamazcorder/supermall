@@ -3,14 +3,18 @@
         <nav-bar class="home-nav">
             <div slot="center">购物街</div>
         </nav-bar>
+        <tab-control :titles="['流行', '新款', '精选']" @tabClick="tabClick" ref="tabControl1" class="tab-control"
+            v-show="isTabShow">
+        </tab-control>
         <!-- 专门封装一个依赖于BSroll实现页面滚动的组件 -->
         <scroll class="content" ref="scroll" @scroll="contentScroll" @pullUpLoad="loadMore" :probe-type="3"
             :pull-up-load="true">
             <!-- 最终在大组件上呈现的小组件必须是完全封装好的 -->
-            <home-swiper :banners="banners"></home-swiper>
+            <home-swiper :banners="banners" @swiperImgLoad="swiperImgLoad"></home-swiper>
             <recommend-view :recommends="recommends"></recommend-view>
             <feature-view></feature-view>
-            <tab-control :titles="['流行', '新款', '精选']" class="tab-control" @tabClick="tabClick"></tab-control>
+            <tab-control :titles="['流行', '新款', '精选']" @tabClick="tabClick" ref="tabControl2" v-show="!isTabShow">
+            </tab-control>
             <goods-list :goods="showGoods"></goods-list>
         </scroll>
         <!-- 监听组件 -->
@@ -43,6 +47,10 @@ import RecommendView from './childComps/RecommendView.vue'
 // 导入特性组件
 import FeatureView from './childComps/FeatureView.vue'
 
+// 导入公共的方法
+import { debounce } from 'common/utils'
+
+
 export default {
     name: "Home",
     components: {
@@ -66,7 +74,10 @@ export default {
                 sell: { page: 0, list: [] }
             },
             currentType: 'pop',
-            isShowBackTop: false
+            isShowBackTop: false,
+            tabOffset: 0,
+            isTabShow: false,
+            saveY: 0
         }
     },
     computed: {
@@ -84,6 +95,25 @@ export default {
         this.getHomeGoods('pop')
         this.getHomeGoods('new')
         this.getHomeGoods('sell')
+
+        // 3.组件创建完就开始监听商品图片是否加载完成
+        // this.$bus.$on('itemImgLoad', () => {
+        //     this.$refs.scroll.refresh()
+        // })
+    },
+    mounted() {
+        // 1.GoodsListItem的图片加载完成的事件监听
+        const refresh = debounce(this.$refs.scroll.refresh, 200)
+        this.$bus.$on('itemImgLoad', () => {
+            refresh()
+        })
+    },
+    activated() {
+        this.$refs.scroll.refresh()
+        this.$refs.scroll.scrollTo(0, this.saveY, 0)
+    },
+    deactivated() {
+        this.saveY = this.$refs.scroll.getScrollY()
     },
     methods: {
         // 网络请求相关的方法
@@ -102,12 +132,15 @@ export default {
                 this.goods[type].list.push(...res.data.data.list)
                 // 每次获取数据成功后，页码数都要加一
                 this.goods[type].page += 1
+                // 每次获取数据成功后，重新开启scroll对上拉加载更多的监听
+                this.$refs.scroll.finishPullUp()
             })
         },
 
+
         // 事件监听相关的方法
-        tabClick(index) {
-            switch (index) {
+        tabClick(currentIndex) {
+            switch (currentIndex) {
                 case 0:
                     this.currentType = 'pop'
                     break
@@ -117,6 +150,8 @@ export default {
                 case 2:
                     this.currentType = 'sell'
             }
+            this.$refs.tabControl1.currentIndex = currentIndex
+            this.$refs.tabControl2.currentIndex = currentIndex
         },
         backClick() {
             // 访问scroll组件里面的BScroll实例(父组件访问子组件)
@@ -129,12 +164,23 @@ export default {
             //     this.isShowBackTop = false;
             // }
             // this.isShowBackTop = position.y < -1000 ? true : false
+            // 1.判断backTop是否显示
             this.isShowBackTop = position.y < -1000
+
+            // 2.判断TabControl是否吸顶
+            if (position.y <= -this.tabOffset) {
+                this.isTabShow = true
+            } else {
+                this.isTabShow = false
+            }
         },
         loadMore() {
             this.getHomeGoods(this.currentType)
-            this.$refs.scroll.finishPullUp()
-            this.$refs.scroll.scroll.refresh()
+        },
+        // 获取tabControl的offsetTop
+        swiperImgLoad() {
+            this.tabOffset = this.$refs.tabControl2.$el.offsetTop
+            console.log(this.tabOffset)
         }
     }
 }
@@ -147,29 +193,30 @@ export default {
 
 
 #home {
-    padding-top: 44px;
     /* vh为视口高度 */
     height: 100vh;
 }
 
 .home-nav {
-    position: fixed;
+    /* 此时用的是BScroll来实现滚动，不是原生的滚动，不会跟随一起滚动，所以滚动不影响nav，不需要固定定位 */
+    /* position: fixed;
     left: 0;
     top: 0;
     right: 0;
-    z-index: 9;
+    z-index: 9; */
     background-color: var(--color-tint);
     color: #fff;
 }
 
-.tab-control {
-    /* 这个属性用于页面滚动到一定高度时就 固定住*/
-    position: sticky;
-    /* 在navbar下面固定住，44是navbar的高度 */
-    /* top看的是距离页面顶部的高度 */
-    top: 44px;
-    z-index: 9;
-}
+/* .tab-control {
+                这个属性用于页面滚动到一定高度时就 固定住
+                使用了Better-Scroll，这个属性就无效了
+                position: sticky;
+                在navbar下面固定住，44是navbar的高度
+                top看的是距离页面顶部的高度
+                top: 44px; 
+                z-index: 9; 
+            } */
 
 .content {
     overflow: hidden;
@@ -186,4 +233,9 @@ export default {
                 margin-top: 44px;
                 overflow: hidden;
             } */
+.tab-control {
+    position: relative;
+    z-index: 2;
+    /* z-index只对定位的元素有效果 */
+}
 </style>

@@ -27,13 +27,13 @@ export default {
         itemClick(index) {
             this.currentIndex = index
             // 子传父，监听自定义事件
-            this.$emit('tabClick',index)
+            this.$emit('tabClick',this.currentIndex)
         }
     }
 }
 </script>
 
-<style>
+<style scoped>
 
 .tab-control {
     display: flex;

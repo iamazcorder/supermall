@@ -1,12 +1,15 @@
 <template>
   <div id="app">
-    <router-view />
-    <main-tab-bar />
+    <!-- 页面跳转进行缓存 -->
+    <keep-alive exclude="Detail">
+      <router-view />
+    </keep-alive>
+    <main-tab-bar v-if="$route.meta.showTabBar"></main-tab-bar>
   </div>
 </template>
-
-<script>
-import MainTabBar from 'components/content/maintabbar/MainTabBar'
+  
+  <script>
+  import MainTabBar from 'components/content/maintabbar/MainTabBar'
 export default {
   name: 'App',
   components: {
@@ -14,7 +17,7 @@ export default {
   }
 }
 </script>
-
-<style>
-  @import "./assets/css/base.css"
-</style>
+  
+  <style>
+      @import " ./assets/css/base.css" 
+  </style>
